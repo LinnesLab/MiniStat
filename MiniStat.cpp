@@ -120,7 +120,7 @@ void MiniStat::runExp() const
 void MiniStat::runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
 {
     dac.outputA(0);
-    dac.outputB(2048);
+    dac.outputB(2048);  //Disables them
     delay(10);
     
     pStat.setGain(user_gain);
@@ -128,13 +128,13 @@ void MiniStat::runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
     pStat.setExtRefSource();
     pStat.setIntZ(1);
     
-    int current = 0;
+    int current = 0;  //Not needed 
     uint8_t index = 0;
     
     //for (int i = 0; i < 50; i++) //for acid clean
     for (int i = 0; i < 2*cycles; i++) //for measurements
     {
-        int polarity = 0;
+        int polarity = 0; // Just positive or negative
         
         if (i%2 == 0)
         {
@@ -290,9 +290,150 @@ void MiniStat::runACV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
 }
 
 
-void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
+void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, int16_t frequency, uint16_t pulse_width, uint16_t pulse_amplitude, uint8_t pulse_per_cycle) //Add duty cycle
 {
-    
+    /*
+	Set DAC output values (Determine what they are)
+	Delay
+
+	Set gain based on user input
+	SetRLoad (Determine what RLoad is)
+	Set ExtRefSource (Determine)
+	SetIntZ (Determine)
+	
+
+
+	revised option
+	for number of cycles
+		for number of divisions
+			Pulse to zero
+			wait for pulse width
+			pulse up to i/number of divisions
+			wait till end (99%) of the pulse
+			Call a new method function to calculate the current
+				-Can assume the polarity is one, no scan rate, Will not need the bias
+		
+	
+	option 1
+	For loop for Bias incriment
+		set first value to zero, incriment the rest to the peak values based on number of cycles
+	
+	For number of user cycles
+		method(0, Scan rate, 1);
+		method(j, scan rate, 1);
+
+
+	Option 2
+	Pulse height value variable initalized to user gain)
+
+	for loop (0 to number of cycles)
+		Set voltage to low for half of the period, post incriment the base voltage (Determine how long the period is going to be (1/Scan Rate?))
+		Turn voltage to high for rest of period
+		Measure the current at 95% of the period
+		Method(i, scan rate, 1)
+
+		
+	
+	*/
+}
+
+void MiniStat::runDPV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16_t endV, uint16_t step_size, uint16_t pulse_amp, uint16_t sample_period, uint16_t pulse_freq)
+{
+
+	/*
+		Set DAC output Values
+		Delay
+		Set Gain
+		SetRload
+		Set extRefSourc
+		SetIntZ
+
+		
+		Revised:
+		for cycles
+			for(start, end, step size)
+				wait(sample minus pulse time)
+				Record current
+				increase voltage pulse size
+				Wait for pulse time
+				Record current
+				differentiat current through a new method
+
+
+		
+		
+		Set variable for the height Value
+
+		For Number of cycles
+			Set the voltage to the base value
+			Sample right before the voltage is increased
+			Incriment voltage the desired amount
+			wait till before the end
+			Sample the end value
+			Incriment the base value
+
+		//will probably need a new comparison method to measure the dfference in currents
+	*/
+}
+
+void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, unit16_t endV,  uint16_t pulse_amp, uint16_t volt_step, uint16_t, pulse_freq)
+{
+	/*
+
+	Set DAC output Values
+		Delay
+		Set Gain
+		SetRload
+		Set extRefSourc
+		SetIntZ
+
+		Revised:
+		For cycles
+			For(Start, end, voltage step)
+				move to the i value voltage
+				Inrease up in amplitude
+				wait for 99%
+				Scan in the current current
+
+				decrease twice the amplitude
+				wait for 99%
+				scan in the current
+		May need a new method for scanning when it comes to being differential
+
+
+		Set variable for the base value
+
+		for the number of cycles
+			Set base value
+			incriment to the top height
+			take sample
+			decriment gain value
+			take sample
+			incrament the base value			
+			
+	*/
+}
+
+void MiniStat::runAMP(uint16_t user_gain, uint16_t voltage, uint16_t time)
+{
+	/*
+		Set DAC output Values
+		Delay
+		Set Gain
+		SetRload
+		Set extRefSourc
+		SetIntZ
+		
+		Change up to the voltage
+		for time
+			read in the current
+			find out how to continuously read in the current
+
+	*/
+
+
+
+
 }
 
 

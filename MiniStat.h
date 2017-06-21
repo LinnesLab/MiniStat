@@ -91,10 +91,12 @@ public:
     
     //void runCV(double cycles, uint16_t scan_rate); //for debug purposes
     void runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate);
-    void runACV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate);
-    void runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate);
-    void method(uint8_t bias, uint16_t scan_rate, int polarity);
-
+    void runACV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate, uint16_t startV, uint16_t endV, uint16_t amplitude, uint16_t freq);
+    void runPulseV(uint8_t user_gain, uint8_t cycles, int16_t frequency, uint16_t pulse_width, uint16_t pulse_amplitude, uint8_t pulse_per_cycle);
+	void runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, unit16_t endV,  uint16_t pulse_amp, uint16_t volt_step, uint16_t pulse_freq);
+	void runDPV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16_t endV, uint16_t step_size, uint16_t pulse_amp, uint16_t sample_period, uint16_t pulse_freq);
+	void method(uint8_t bias, uint16_t scan_rate, int polarity);
+	void runAMP(uint16_t user_gain, uint16_t voltage, uint16_t time);
     void save();
     void print();
     
