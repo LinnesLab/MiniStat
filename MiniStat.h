@@ -26,7 +26,9 @@
 
 #ifndef MINISTAT_H
 #define MINISTAT_H
-
+typedef unsigned short uint8_t;
+typedef unsigned int uint16_t;
+typedef unsigned long uint32_t;
 #include "Arduino.h"
 #include "Wire.h"
 #include "SPI.h"
@@ -41,6 +43,7 @@
 #include "DAC_MCP49xx.h"
 #include "Waveforms.h"
 #include "Mux.h"
+#include "cstdint.h"
 
 
 
@@ -98,7 +101,7 @@ public:
 	void method(uint8_t bias, uint16_t scan_rate, int polarity);
 	void runAMP(uint16_t user_gain, uint16_t voltage, uint16_t time, int samples);
     void save();
-	uint16_t calcDACValue(uint16_t  vout)
+	unsigned short calcDACValue(uint16_t  vout)
     void print();
 	int calcCurrent(uint16_t voltag, uint16_t scan_rate, int polarity);
 	int getPolarity(uint16_t voltage);
