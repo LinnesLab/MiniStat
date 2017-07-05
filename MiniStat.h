@@ -26,9 +26,9 @@
 
 #ifndef MINISTAT_H
 #define MINISTAT_H
-typedef unsigned short uint8_t;
-typedef unsigned int uint16_t;
-typedef unsigned long uint32_t;
+//typedef unsigned short uint8_t;
+//typedef unsigned int uint16_t;
+//typedef unsigned long uint32_t;
 #include "Arduino.h"
 #include "Wire.h"
 #include "SPI.h"
@@ -43,7 +43,7 @@ typedef unsigned long uint32_t;
 #include "DAC_MCP49xx.h"
 #include "Waveforms.h"
 #include "Mux.h"
-#include "cstdint.h"
+//#include "cstdint.h"
 
 
 
@@ -95,15 +95,15 @@ public:
     //void runCV(double cycles, uint16_t scan_rate); //for debug purposes
     void runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate);
     void runACV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate, uint16_t startV, uint16_t endV, uint16_t amplitude, uint16_t freq);
-    void runPulseV(uint8_t user_gain, uint8_t cycles, int16_t frequency, uint16_t pulse_width, uint16_t pulse_amplitude, uint8_t pulse_per_cycle,uint16_t duty_cycle);
-	void runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, unit16_t endV,  uint16_t pulse_amp, uint16_t volt_step, uint16_t pulse_freq);
+    void runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, uint16_t pulse_width, uint16_t pulse_amplitude, uint8_t pulse_per_cycle,uint16_t duty_cycle);
+	void runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16_t endV,  uint16_t pulse_amp, uint16_t volt_step, uint16_t pulse_freq);
 	void runDPV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16_t endV, uint16_t step_size, uint16_t pulse_amp, uint16_t sample_period, uint16_t pulse_freq);
 	void method(uint8_t bias, uint16_t scan_rate, int polarity);
 	void runAMP(uint16_t user_gain, uint16_t voltage, uint16_t time, int samples);
     void save();
-	unsigned short calcDACValue(uint16_t  vout)
+	unsigned short calcDACValue(uint16_t  vout);
     void print();
-	int calcCurrent(uint16_t voltag, uint16_t scan_rate, int polarity);
+	int calcCurrent(uint16_t voltage, uint16_t scan_rate, int polarity);
 	int getPolarity(uint16_t voltage);
     
 };

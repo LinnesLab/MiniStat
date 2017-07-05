@@ -221,7 +221,7 @@ void MiniStat::method(uint8_t bias, uint16_t scan_rate, int polarity)
 }
 
 
-void MiniStat::runACV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
+void MiniStat::runACV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate, uint16_t startV, uint16_t endV, uint16_t amplitude, uint16_t freq)
 {
     //pStat.setTwoLead();
     pStat.setGain(user_gain);
@@ -290,7 +290,7 @@ void MiniStat::runACV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
 }
 
 
-void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, uint16_t pulse_width, uint16_t pulse_amp, uint8_t pulse_per_cycle, uint16_t duty_cycle) //Add duty cycle
+void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, uint16_t pulse_width, uint16_t pulse_amplitude, uint8_t pulse_per_cycle, uint16_t duty_cycle) //Add duty cycle
 {
     /*
 	Set DAC output values (Determine what they are)
@@ -357,9 +357,9 @@ void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, 
 			
 			//create wait based on duty cycles
 			
-			volt = ((double)(j / pulse_per_cycle)) * calcDACValue(pulse_amp);
+			volt = ((double)(j / pulse_per_cycle)) * calcDACValue(pulse_amplitude);
 			dac.outputA(volt);
-			polarty = getPolarity(volt);
+			polarity = getPolarity(volt);
 			current1 = calcCurrent(volt, frequency, polarity);
 
 			//{rintout the values
@@ -434,7 +434,7 @@ void MiniStat::runDPV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 
 			volt = calcDACValue(j + pulse_amp);
 			dac.outputA(volt);
-			polairty = getPolarity(volt);
+			polarity = getPolarity(volt);
 
 			//wait till the end value of time
 
@@ -482,12 +482,12 @@ void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 		{
 			//Set voltage to J
 			volt = calcDACValue(j); //Sets it to the DAC code value based on the voltage inputed
-			polarity = getPolarity(volt)
+			polarity = getPolarity(volt);
 			dac.outputA(volt); //Sets the voltage to the number given
 
 			//increase to J + pulse amp
 			volt = calcDACValue(j + pulse_amp); //Base Value + Amplitude
-			polarity = getPolarity(volt)
+			polarity = getPolarity(volt);
 			dac.outputA(volt);
 			//Wait for (.99 * 1/pulse_freq);
 			//delay(0.99 / pulse_freq); //will need a new method to account for the inverse
@@ -497,7 +497,7 @@ void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 
 			//Decrease to (J - Pulse amp)
 			volt = calcDACValue(j - pulse_amp);
-			polarity = getPolarity(volt)
+			polarity = getPolarity(volt);
 			dac.outputA(volt);
 			//Wait for (.99 * 1/pulse_freq);
 			//delay(0.99 / pulse_freq);
@@ -515,13 +515,13 @@ void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 	}
 }
 
-int iniStat::calCurrent(uint16_t voltage, uint16_t scan_rate, int polarity)
+int MiniStat::calcCurrent(uint16_t voltage, uint16_t scan_rate, int polarity)
 {
 	
 	//pStat.setBias(bias);
 	delay(scan_rate);
 
-	int voltage = polarity * voltage * ADC_REF * 1000;
+	int volt = polarity * voltage * ADC_REF * 1000;
 	//    memory.write(memory.getCurReg(), (voltage & 0xFF));
 	//    memory.write(memory.getCurReg(), ((voltage >> 8) & 0xFF));
 
