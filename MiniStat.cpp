@@ -43,19 +43,22 @@ void MiniStat::begin()
 {
     //wakes up ATmega328
     sleep_disable();
+
     
     //wakes up LMP91000
     //pStat.setMENB(pStat_Ctrl);
-    pStat.standby();
-    pStat.disableFET();
-    pStat.setThreeLead();
-    delay(1000);
-    
+//    pStat.standby();
+ //   pStat.disableFET();
+	
+//    pStat.setThreeLead();
+//    delay(1000);
+
     //initiates MCP4922
     dac.setSPIDivider(SPI_CLOCK_DIV16);
     dac.setPortWrite(true);
     dac.setAutomaticallyLatchDual(false);
-    
+	
+
 }
 
 
@@ -290,7 +293,7 @@ void MiniStat::runACV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate, uin
 }
 
 
-void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, uint16_t pulse_width, uint16_t pulse_amplitude, uint8_t pulse_per_cycle, uint16_t duty_cycle) //Add duty cycle
+void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, uint16_t pulse_width, int pulse_amplitude, uint8_t pulse_per_cycle) //Add duty cycle
 {
     /*
 	Set DAC output values (Determine what they are)
@@ -340,14 +343,20 @@ void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, 
 	dac.outputB(0);  //Disables them
 	delay(10);
 
-	pStat.setGain(user_gain);
-	pStat.setRLoad(0);
-	pStat.setExtRefSource();
-	pStat.setIntZ(1);
+//	pStat.setGain(user_gain);
+//	pStat.setRLoad(0);
+//	pStat.setExtRefSource();
+//	pStat.setIntZ(1);
 
 	int current1 = 0;
 	unsigned short volt = 0;
 	int polarity = 0;
+
+	int down_time = 1000 / frequency - pulse_width; //Freq HZ pulse_width ms
+	Serial.print("Down Time: ");
+	Serial.println(down_time);
+
+
 
 	for (int i = 1; i <= cycles; i++)
 	{
@@ -356,19 +365,21 @@ void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, 
 			dac.outputA(0);
 			
 			//create wait based on duty cycles
-			
-			volt = ((double)(j / pulse_per_cycle)) * calcDACValue(pulse_amplitude);
+			delay(down_time);
+			volt = (((double)j / pulse_per_cycle)) * calcDACValue(pulse_amplitude);
+			Serial.println(volt);
 			dac.outputA(volt);
-			polarity = getPolarity(volt);
-			current1 = calcCurrent(volt, frequency, polarity);
+//			polarity = getPolarity(volt);
+//			current1 = calcCurrent(volt, frequency, polarity);
 
 			//{rintout the values
 
 		}
+		dac.outputA(0);
 	}
 }
 
-void MiniStat::runDPV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16_t endV, uint16_t step_size, uint16_t pulse_amp, uint16_t sample_period, uint16_t pulse_freq)
+void MiniStat::runDPV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16_t endV, int step_size, int pulse_amp, uint16_t sample_period, uint16_t pulse_freq)
 {
 
 	/*
@@ -411,60 +422,63 @@ void MiniStat::runDPV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 	dac.outputB(0);  //Disables them
 	delay(10);
 
-	pStat.setGain(user_gain);
-	pStat.setRLoad(0);
-	pStat.setExtRefSource();
-	pStat.setIntZ(1);
+//	pStat.setGain(user_gain);
+//	pStat.setRLoad(0);
+//	pStat.setExtRefSource();
+//	pStat.setIntZ(1);
 
 	int current1 = 0;
 	int current2 = 0;
-	unsigned short volt = 0;
+	int volt = 0;
 	int polarity = 0;
 	for (int i = 1; i <= cycles; i++)
 	{
-		for (uint16_t j = startV; j < endV; j += step_size)
+		for (int j = startV; j <= endV; j += step_size)
 		{
 			volt = calcDACValue(j);
 			dac.outputA(volt);
 			polarity = getPolarity(volt);
 
 			//wait for the prestep sample
+			delay((1000 / pulse_freq)); //Will need to do minus the sample period later
 
-			current1 = calcCurrent(volt, pulse_freq, polarity);
+
+//			current1 = calcCurrent(volt, pulse_freq, polarity);
 
 			volt = calcDACValue(j + pulse_amp);
 			dac.outputA(volt);
 			polarity = getPolarity(volt);
 
 			//wait till the end value of time
+			delay(1000 / pulse_freq);
 
-			current2 = calcCurrent(volt, pulse_freq, polarity);
+//			current2 = calcCurrent(volt, pulse_freq, polarity);
 			
 			//prints the base voltage value and the current difference
-			Serial.print(j);
-			Serial.print(",");
-			Serial.println(-(current2 - current1));
+//			Serial.print(j);
+//			Serial.print(",");
+//			Serial.println(-(current2 - current1));
 
 			
 
 		}
 	}
-
+	dac.outputA(0);
 
 }
 
-void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16_t endV,  uint16_t pulse_amp, uint16_t volt_step, uint16_t pulse_freq)
+void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16_t endV,  int pulse_amp, uint16_t volt_step, uint16_t pulse_freq)
 {
 	
 	dac.outputA(0);
 	dac.outputB(0);  //Disables them //May need to change to half
 	delay(10);
 	
-	pStat.setGain(user_gain);
-	pStat.setRLoad(0);
-	pStat.setExtRefSource();
-	pStat.setIntZ(1);
-	uint16_t volt = 0; //in code to send to the DAC
+//	pStat.setGain(user_gain);
+//	pStat.setRLoad(0);
+//	pStat.setExtRefSource();
+//	pStat.setIntZ(1);
+	int volt = 0; //in code to send to the DAC
 	int polarity = 0; //This should all be good
 
 	int current1 = 0;
@@ -478,48 +492,59 @@ void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 	*/
 	for (int i = 1; i <= cycles; i++)
 	{
-		for (uint16_t j = startV; j <= endV; j += volt_step)
+		volt = calcDACValue(startV); //Sets it to the DAC code value based on the voltage inputed
+		polarity = getPolarity(volt);
+		dac.outputA(volt); //Sets the voltage to the number given
+		for (int j = startV; j <= endV; j += volt_step)
 		{
-			//Set voltage to J
-			volt = calcDACValue(j); //Sets it to the DAC code value based on the voltage inputed
-			polarity = getPolarity(volt);
-			dac.outputA(volt); //Sets the voltage to the number given
+	
 
+			Serial.println(j);
 			//increase to J + pulse amp
+			Serial.print(j + pulse_amp);
+			Serial.print(", ");
 			volt = calcDACValue(j + pulse_amp); //Base Value + Amplitude
+			Serial.println(volt);
 			polarity = getPolarity(volt);
 			dac.outputA(volt);
 			//Wait for (.99 * 1/pulse_freq);
 			//delay(0.99 / pulse_freq); //will need a new method to account for the inverse
 			//Scan the current and store
-			current1 = calcCurrent(volt, pulse_freq, polarity);
+			
+			delay(1000 / pulse_freq); //Added to accomidate for the wait time possible
+//			current1 = calcCurrent(volt, pulse_freq, polarity);
 
 
 			//Decrease to (J - Pulse amp)
+			Serial.print(j - pulse_amp);
+			Serial.print(", ");
 			volt = calcDACValue(j - pulse_amp);
+			Serial.println(volt);
 			polarity = getPolarity(volt);
 			dac.outputA(volt);
 			//Wait for (.99 * 1/pulse_freq);
 			//delay(0.99 / pulse_freq);
 			//scan the current and store
-			current2 = calcCurrent(volt, pulse_freq, polarity);
+			delay(1000 / pulse_freq);
+//			current2 = calcCurrent(volt, pulse_freq, polarity);
 			//Find the difference in current and print it
-			Serial.print(j);
-			Serial.print(",");
+//			Serial.print(j);
+//			Serial.print(",");
 			//Serial.print(adcVal);
 			//serial.print(",");
-			Serial.println(-(current2 - current1)); //See if this is how the printing works
+//			Serial.println(-(current2 - current1)); //See if this is how the printing works
 
 		}
 
 	}
+	dac.outputA(0);
 }
 
 int MiniStat::calcCurrent(uint16_t voltage, uint16_t scan_rate, int polarity)
 {
 	
 	//pStat.setBias(bias);
-	delay(scan_rate);
+	//delay(scan_rate);
 
 	int volt = polarity * voltage * ADC_REF * 1000;
 	//    memory.write(memory.getCurReg(), (voltage & 0xFF));
@@ -539,7 +564,7 @@ int MiniStat::calcCurrent(uint16_t voltage, uint16_t scan_rate, int polarity)
 	return current;
 }
 
-void MiniStat::runAMP(uint16_t user_gain, uint16_t voltage, uint16_t time, int samples)
+void MiniStat::runAMP(uint16_t user_gain, int voltage, uint16_t time, int samples)
 {
 	/*
 		Set DAC output Values
@@ -559,30 +584,33 @@ void MiniStat::runAMP(uint16_t user_gain, uint16_t voltage, uint16_t time, int s
 	dac.outputB(0);  //Disables them
 	delay(10);
 
-	pStat.setGain(user_gain);
-	pStat.setRLoad(0);
-	pStat.setExtRefSource();
-	pStat.setIntZ(1);
-	uint16_t volt = 0;
+//	pStat.setGain(user_gain);
+//	pStat.setRLoad(0);
+//	pStat.setExtRefSource();
+//	pStat.setIntZ(1);
+	
 	int polarity = 0;
 
-	uint16_t wait_time = (time * 1000 / samples); //Time in MS
-
-	dac.outputA(calcDACValue(voltage));
+	uint16_t wait_time = (time  / samples); //Time in MS
+	uint16_t volt = calcDACValue(voltage);
+	Serial.println(calcDACValue(voltage));
+	Serial.println(volt);
+	dac.outputA(volt);
 	
 	for (int i = 0; i < samples; i++)
 	{
 		delay(wait_time);
-		uint16_t adcVal = pStat.getOutput(pStat_Sensor);
-		int current = pStat.getCurrent(adcVal, ADC_REF, ADC_BITS)*pow(10, 8);
+//		uint16_t adcVal = pStat.getOutput(pStat_Sensor);
+//		int current = pStat.getCurrent(adcVal, ADC_REF, ADC_BITS)*pow(10, 8);
 
-		Serial.print(voltage);
-		Serial.print(",");
-		Serial.print(adcVal);
-		Serial.print(",");
-		Serial.println(-current);
+//		Serial.print(voltage);
+//		Serial.print(",");
+//		Serial.print(adcVal);
+//		Serial.print(",");
+//		Serial.println(-current);
 		
 	}
+	dac.outputA(0);
 
 
 	
@@ -609,9 +637,10 @@ void MiniStat::print()
     }
 }
 
-unsigned short MiniStat::calcDACValue(uint16_t vout)
+int MiniStat::calcDACValue(int vout)
 {
-	return (vout * 4096 / 5);
+	return (int)((long double)(vout) * 2* 4096 / 3300);
+	
 }
 
 int MiniStat::getPolarity(uint16_t volt)
