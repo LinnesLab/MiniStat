@@ -351,10 +351,16 @@ void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, 
 	int current1 = 0;
 	unsigned short volt = 0;
 	int polarity = 0;
+	int ms = 0;
+	int us = 0;
+	int down_time = (1000000 / frequency - pulse_width); //Down time in us
+	ms = down_time / 1000;
+	us = down_time - 1000 * ms;
 
-	int down_time = 1000 / frequency - pulse_width; //Freq HZ pulse_width ms
-	Serial.print("Down Time: ");
+
+	Serial.print("Down time: ");
 	Serial.println(down_time);
+
 
 
 
@@ -365,10 +371,13 @@ void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, 
 			dac.outputA(0);
 			
 			//create wait based on duty cycles
-			delay(down_time);
+			delay(ms);
+			delayMicroseconds(us); //Delay us can only do 16000, do two delays for more accuracy
 			volt = (((double)j / pulse_per_cycle)) * calcDACValue(pulse_amplitude);
-			Serial.println(volt);
+	
 			dac.outputA(volt);
+		
+			delayMicroseconds(pulse_width); //Find the accuracy of this
 //			polarity = getPolarity(volt);
 //			current1 = calcCurrent(volt, frequency, polarity);
 
@@ -535,10 +544,12 @@ void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 //			Serial.println(-(current2 - current1)); //See if this is how the printing works
 
 		}
-
+		dac.outputA(0);
 	}
 	dac.outputA(0);
 }
+	
+
 
 int MiniStat::calcCurrent(uint16_t voltage, uint16_t scan_rate, int polarity)
 {
@@ -590,7 +601,7 @@ void MiniStat::runAMP(uint16_t user_gain, int voltage, uint16_t time, int sample
 //	pStat.setIntZ(1);
 	
 	int polarity = 0;
-
+	
 	uint16_t wait_time = (time  / samples); //Time in MS
 	uint16_t volt = calcDACValue(voltage);
 	Serial.println(calcDACValue(voltage));
@@ -639,7 +650,9 @@ void MiniStat::print()
 
 int MiniStat::calcDACValue(int vout)
 {
-	return (int)((long double)(vout) * 2* 4096 / 3300);
+	long x = vout;
+	
+	return ((int)(x  * 4096 / 3300));
 	
 }
 
