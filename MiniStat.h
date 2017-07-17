@@ -103,8 +103,8 @@ public:
     void save();
 	int calcDACValue(int  vout);
     void print();
-	int calcCurrent(uint16_t voltage, uint16_t scan_rate, int polarity);
-	int getPolarity(uint16_t voltage);
+	int calcCurrent(uint16_t voltage,  int polarity);
+	int getPolarity(int voltage);
     
 };
 
