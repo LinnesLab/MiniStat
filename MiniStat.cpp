@@ -44,19 +44,32 @@ void MiniStat::begin()
     //wakes up ATmega328
     sleep_disable();
 
+	delay(100);
+
     
     //wakes up LMP91000
     pStat.setMENB(pStat_Ctrl);
-    pStat.standby();
+
+	delay(50);
+   pStat.standby();
+
+
+	delay(50);
    pStat.disableFET();
-	
+
     pStat.setThreeLead();
+
     delay(1000);
+
 
     //initiates MCP4922
     dac.setSPIDivider(SPI_CLOCK_DIV16);
+	
     dac.setPortWrite(true);
+	
     dac.setAutomaticallyLatchDual(false);
+	
+
 	
 
 }
@@ -122,8 +135,9 @@ void MiniStat::runExp() const
 //bias on the reference electrode form 0 to 0.24 times the reference voltage.
 void MiniStat::runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
 {
-    dac.outputA(0);
-    dac.outputB(2048);  //Disables them, sets it up as a triangle wave
+    dac.outputA(4095);
+   // dac.outputB(2047);  //Disables them, sets it up as a triangle wave
+	//originally 0, 2048
     delay(10);
     
     pStat.setGain(user_gain);
@@ -164,6 +178,9 @@ void MiniStat::runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
             //Serial.println(k);
         }
     }
+
+	dac.outputA(0);
+	dac.outputB(0);
             
 }
 
@@ -176,12 +193,12 @@ void MiniStat::method(uint8_t bias, uint16_t scan_rate, int polarity)
     pStat.setBias(bias);
     delay(scan_rate);
     
-    int voltage = polarity*bias_incr[bias]*ADC_REF*1000;
+    long voltage = polarity*bias_incr[bias]*ADC_REF*1000;
 //    memory.write(memory.getCurReg(), (voltage & 0xFF));
 //    memory.write(memory.getCurReg(), ((voltage >> 8) & 0xFF));
     
 	uint16_t adcVal = pStat.getOutput(pStat_Sensor);
-	int current = pStat.getCurrent(adcVal, ADC_REF, ADC_BITS)*pow(10, 8);
+	long current = pStat.getCurrent(adcVal, ADC_REF, ADC_BITS) *pow(10, 8);
 //    memory.write(memory.getCurReg(), (current & 0xFF));
 //    memory.write(memory.getCurReg(), ((current >> 8) & 0xFF));
     
@@ -522,7 +539,7 @@ void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 			//Scan the current and store
 			
 			delay(1000 / pulse_freq); //Added to accomidate for the wait time possible
-/			current1 = calcCurrent(j + pulse_amp,  polarity);
+			current1 = calcCurrent(j + pulse_amp,  polarity);
 
 
 			//Decrease to (J - Pulse amp)
@@ -561,14 +578,14 @@ int MiniStat::calcCurrent(uint16_t voltage, int polarity)
 	pStat.setBias(13);
 	//int volt = polarity * voltage * ADC_REF * 1000; //Check if this is correct
 	//int volt = polarity * bias_incr[bias] * ADC_REF * 1000;
-	int volt = polarity *  voltage * 1000;
+	long volt = polarity *  voltage;
 	//set the bias to max value, compensated for this by making the outputted voltage larger
 	
 	//    memory.write(memory.getCurReg(), (voltage & 0xFF));
 	//    memory.write(memory.getCurReg(), ((voltage >> 8) & 0xFF));
 
 	uint16_t adcVal = pStat.getOutput(pStat_Sensor);
-	int current = pStat.getCurrent(adcVal, ADC_REF, ADC_BITS)*pow(10, 8);
+	long current = pStat.getCurrent(adcVal, ADC_REF, ADC_BITS)*pow(10, 8);
 	//    memory.write(memory.getCurReg(), (current & 0xFF));
 	//    memory.write(memory.getCurReg(), ((current >> 8) & 0xFF));
 
