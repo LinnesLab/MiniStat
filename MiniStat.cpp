@@ -147,15 +147,12 @@ void MiniStat::runExp() const
 //bias on the reference electrode form 0 to 0.24 times the reference voltage.
 void MiniStat::runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
 {
-<<<<<<< HEAD
-    dac.outputA(0);
-	dac.outputB(2047)
-   // dac.outputB(2047);  //Disables them, sets it up as a triangle wave
-=======
+
+
     //dac.outputA(4095); // this is for Nick
     dac.outputA(0);
     dac.outputB(2047);  //Disables them, sets it up as a triangle wave
->>>>>>> 5af23e268f0763daebdac30b7cc3bb4aff246b26
+
 	//originally 0, 2048
     delay(10);
     
