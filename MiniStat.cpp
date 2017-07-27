@@ -28,6 +28,7 @@ MiniStat::MiniStat()
 void MiniStat::initialize()
 {
     pStat = LMP91000();
+	wtest = Writetest();
     memory = EEPROM_24C64A();
     dac = DAC_MCP49xx(DAC_MCP49xx::MCP4922, 10); //int SS_PIN = 10;
     channel = Mux(channel_Ctrl);
@@ -35,6 +36,17 @@ void MiniStat::initialize()
     pStat.setMENB(pStat_Ctrl);
 }
 
+void MiniStat::WTest() {
+	Serial.println(pStat.read(LMP91000_REFCN_REG));
+	wtest.read();
+	wtest.write();
+	delay(100);
+	wtest.read();
+	Serial.println(pStat.read(LMP91000_REFCN_REG));
+
+	//Giving me -1 8 times. should print 8 zeros
+	//Possible wired wrong
+}
 
 //void MiniStat::begin()
 //
@@ -135,16 +147,25 @@ void MiniStat::runExp() const
 //bias on the reference electrode form 0 to 0.24 times the reference voltage.
 void MiniStat::runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
 {
-    dac.outputA(4095);
+    dac.outputA(0);
+	dac.outputB(2047)
    // dac.outputB(2047);  //Disables them, sets it up as a triangle wave
 	//originally 0, 2048
     delay(10);
     
     pStat.setGain(user_gain);
+	Serial.print("User Gain: ");
+	Serial.println(pStat.getGain());
     pStat.setRLoad(0);
+	Serial.print("R load: ");
+	Serial.println(pStat.read(LMP91000_TIACN_REG));
     pStat.setExtRefSource();
+	Serial.print("ExtRefSource: ");
+	Serial.println(pStat.read(LMP91000_REFCN_REG));
     pStat.setIntZ(1);
-    
+	Serial.print("Set Int Z: ");
+	Serial.println(pStat.getIntZ());
+	delay(100);
     int current = 0;  //Not needed 
     uint8_t index = 0;
     
@@ -155,13 +176,23 @@ void MiniStat::runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
         
         if (i%2 == 0)
         {
-            pStat.setNegBias();
-            polarity = -1;
+			Serial.print("Bias: ");
+			Serial.print(pStat.read(LMP91000_REFCN_REG));
+			Serial.print(", ");
+			pStat.setNegBias();
+			
+			polarity = -1; 
+			Serial.println(pStat.read(LMP91000_REFCN_REG));
         }
         else
         {
-            pStat.setPosBias();
-            polarity = 1;
+			Serial.print("Bias: ");
+			Serial.print(pStat.read(LMP91000_REFCN_REG));
+			Serial.print(", ");
+			pStat.setPosBias();
+			pStat.setBias(1);
+			polarity = 1;
+			Serial.println(pStat.read(LMP91000_REFCN_REG));
         }
         
         for (int j = 1; j <= 13; j++)
@@ -192,6 +223,9 @@ void MiniStat::method(uint8_t bias, uint16_t scan_rate, int polarity)
 {
     pStat.setBias(bias);
     delay(scan_rate);
+
+	Serial.print("New Bias: ");
+	Serial.println(pStat.read(LMP91000_REFCN_REG));
     
     long voltage = polarity*bias_incr[bias]*ADC_REF*1000;
 //    memory.write(memory.getCurReg(), (voltage & 0xFF));
@@ -385,7 +419,7 @@ void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, 
 	{
 		for (int j = 1; j <= pulse_per_cycle; j++)
 		{
-			dac.outputA(0);
+			dac.outputB(0);
 			
 			//create wait based on duty cycles
 			delay(ms);
@@ -393,7 +427,7 @@ void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, 
 			
 			volt = (((double)j / pulse_per_cycle)) * calcDACValue(pulse_amplitude);
 	
-			dac.outputA(volt);
+			dac.outputB(volt);
 		
 			delayMicroseconds(pulse_width); //Find the accuracy of this
 			polarity = getPolarity((((double)j / pulse_per_cycle)) * pulse_amplitude);
@@ -402,7 +436,7 @@ void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, 
 			//{rintout the values
 
 		}
-		dac.outputA(0);
+		dac.outputB(0);
 	}
 }
 
@@ -463,7 +497,7 @@ void MiniStat::runDPV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 		for (int j = startV; j <= endV; j += step_size)
 		{
 			volt = calcDACValue(j);
-			dac.outputA(volt);
+			dac.outputB(volt);
 			polarity = getPolarity(j);
 
 			//wait for the prestep sample
@@ -473,7 +507,7 @@ void MiniStat::runDPV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 			current1 = calcCurrent(j, polarity);
 
 			volt = calcDACValue(j + pulse_amp);
-			dac.outputA(volt);
+			dac.outputB(volt);
 			polarity = getPolarity(j + pulse_amp);
 
 			//wait till the end value of time
@@ -490,7 +524,7 @@ void MiniStat::runDPV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 
 		}
 	}
-	dac.outputA(0);
+	dac.outputB(0);
 
 }
 
@@ -521,7 +555,7 @@ void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 	{
 		volt = calcDACValue(startV); //Sets it to the DAC code value based on the voltage inputed
 		polarity = getPolarity(volt);
-		dac.outputA(volt); //Sets the voltage to the number given
+		dac.outputB(volt); //Sets the voltage to the number given
 		for (int j = startV; j <= endV; j += volt_step)
 		{
 	
@@ -533,7 +567,7 @@ void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 			volt = calcDACValue(j + pulse_amp); //Base Value + Amplitude
 			//Serial.println(volt);
 			polarity = getPolarity(j + pulse_amp);
-			dac.outputA(volt);
+			dac.outputB(volt);
 			//Wait for (.99 * 1/pulse_freq);
 			//delay(0.99 / pulse_freq); //will need a new method to account for the inverse
 			//Scan the current and store
@@ -548,7 +582,7 @@ void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 			volt = calcDACValue(j - pulse_amp);
 			//Serial.println(volt);
 			polarity = getPolarity(j- pulse_amp);
-			dac.outputA(volt);
+			dac.outputB(volt);
 			//Wait for (.99 * 1/pulse_freq);
 			//delay(0.99 / pulse_freq);
 			//scan the current and store
@@ -563,7 +597,7 @@ void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16
 
 
 		}
-		dac.outputA(0);
+		dac.outputB(0);
 	}
 	dac.outputA(0);
 }
@@ -630,7 +664,7 @@ void MiniStat::runAMP(uint16_t user_gain, int voltage, uint16_t time, int sample
 	uint16_t volt = calcDACValue(voltage);
 	Serial.println(calcDACValue(voltage));
 	Serial.println(volt);
-	dac.outputA(volt);
+	dac.outputB(volt);
 	
 	for (int i = 0; i < samples; i++)
 	{
@@ -646,7 +680,7 @@ void MiniStat::runAMP(uint16_t user_gain, int voltage, uint16_t time, int sample
 //		Serial.println(-current);
 		
 	}
-	dac.outputA(0);
+	dac.outputB(0);
 
 
 	
@@ -677,7 +711,7 @@ int MiniStat::calcDACValue(int vout)
 {
 	long x = 4.1666 * vout;
 	
-	return ((int)(x  * 4096 / 3300));
+	return ((int)(x  * 4096 / 1650));  //Divided by half of the vref
 	
 }
 

@@ -38,11 +38,13 @@
 #include "avr/sleep.h"
 #include "avr/io.h"
 
+#include "Writetest.h"
 #include "LMP91000.h"
 #include "EEPROM_24C64A.h"
 #include "DAC_MCP49xx.h"
 #include "Waveforms.h"
 #include "Mux.h"
+
 //#include "cstdint.h"
 
 
@@ -76,6 +78,7 @@ private:
     EEPROM_24C64A memory;
     DAC_MCP49xx dac;
     Mux channel;
+	Writetest wtest;
     
     
 public:
@@ -105,6 +108,7 @@ public:
     void print();
 	int calcCurrent(uint16_t voltage,  int polarity);
 	int getPolarity(int voltage);
+	void WTest();
     
 };
 
