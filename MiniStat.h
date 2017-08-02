@@ -106,7 +106,7 @@ public:
     void save();
 	int calcDACValue(int  vout);
     void print();
-	int calcCurrent(uint16_t voltage,  int polarity);
+	int calcCurrent(uint16_t voltage,  int polarity, bool print, int bias);
 	int getPolarity(int voltage);
 	void WTest();
     
