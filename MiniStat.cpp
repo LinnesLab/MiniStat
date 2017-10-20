@@ -33,6 +33,7 @@ void MiniStat::initialize()
     channel = Mux(channel_Ctrl);
     
     pStat.setMENB(pStat_Ctrl);
+
 }
 
 
@@ -42,7 +43,7 @@ void MiniStat::initialize()
 void MiniStat::begin()
 {
     //wakes up ATmega328
-    sleep_disable();
+ //   sleep_disable();
     
     //wakes up LMP91000
 //   // pStat.setMENB(pStat_Ctrl);
@@ -75,11 +76,11 @@ void MiniStat::sleep()
     pStat.enableFET();
     pStat.sleep();
     //set_sleep_mode(SLEEP_MODE_PWR_SAVE); //SLEEP_MODE_PWR_DOWN
-    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+ //   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     delay(100);
-    sleep_enable();
+//    sleep_enable();
     delay(100);
-    sleep_mode();
+//    sleep_mode();
 }
 
 
@@ -151,23 +152,25 @@ void MiniStat::runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
         {
 			pStat.setNegBias();
 			polarity = -1; 
+
 		}
         else
         {
 			
 			pStat.setPosBias();
 			polarity = 1;
+
 			
         }
         
-        for (int j = 1; j <= 13; j++)
+        for (int j = 1; j <= 10; j++)
         {
             method(j, scan_rate, polarity);
             //Serial.print("j: ");
             //Serial.println(j);
         }
         
-        for (int k = 12; k >= 0; k--)
+        for (int k = 9; k >= 0; k--)
         {
             method(k, scan_rate, polarity);
             //Serial.print("k: ");
@@ -680,7 +683,7 @@ void MiniStat::print()
 
 int MiniStat::calcDACValue(int vout)
 {
-	long x = 4.1666 * vout;
+	double x = 4.1666 * vout;
 	
 	return ((int)(x  * 2048 / 3300));  //Divided by half of the vref
 	

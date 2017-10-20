@@ -33,10 +33,10 @@
 #include "Wire.h"
 #include "SPI.h"
 
-#include "avr/interrupt.h"
+/*#include "avr/interrupt.h"
 #include "avr/power.h"
 #include "avr/sleep.h"
-#include "avr/io.h"
+#include "avr/io.h"*/
 
 #include "Writetest.h"
 #include "LMP91000.h"
