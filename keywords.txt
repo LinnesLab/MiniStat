@@ -1,0 +1,39 @@
+#######################################
+# Syntax Coloring Map for MiniStat
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+MiniStat	KEYWORD1
+
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+initialize	KEYWORD2
+begin	KEYWORD2
+sleep	KEYWORD2
+setTarget	KEYWORD2
+runRef	KEYWORD2
+runExp	KEYWORD2
+runCV	KEYWORD2
+runACV	KEYWORD2
+runNPV	KEYWORD2
+runSWV	KEYWORD2
+runDPV	KEYWORD2
+method	KEYWORD2
+runAmp	KEYWORD2
+save	KEYWORD2
+calcDACValue	KEYWORD2
+print	KEYWORD2
+calcCurrent	KEYWORD2
+getPolarity	KEYWORD2
+WTest	KEYWORD2
+
+
+#######################################
+# Constants (LITERAL1)
+#######################################

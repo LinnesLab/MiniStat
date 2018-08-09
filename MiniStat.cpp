@@ -165,14 +165,16 @@ void MiniStat::runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
             polarity = 1;
         }
         
-        for (int j = 1; j <= 13; j++)
+        //for (int j = 1; j <= 13; j++)
+        for (int j = 1; j <= 9; j++)
         {
             method(j, scan_rate, polarity);
             //Serial.print("j: ");
             //Serial.println(j);
         }
         
-        for (int k = 12; k >= 0; k--)
+        //for (int k = 12; k >= 0; k--)
+        for (int k = 8; k >= 0; k--)
         {
             method(k, scan_rate, polarity);
             //Serial.print("k: ");
@@ -208,6 +210,8 @@ void MiniStat::method(uint8_t bias, uint16_t scan_rate, int polarity)
     Serial.print(adcVal);
     Serial.print(",");
     Serial.println(-current);
+    
+    
     //Serial.println(millis());
 
 //    Serial.print(current, DEC);
