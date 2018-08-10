@@ -13,6 +13,10 @@
 
 #include "MiniStat.h"
 
+const uint16_t opVolt = 3300;
+const uint16_t resolution = 1023;
+const uint8_t MENB = 2;
+
 
 //DEFAULT CONSTRUCTOR
 //MiniStat::MiniStat()
@@ -39,9 +43,9 @@ void MiniStat::initialize()
 //void MiniStat::begin()
 //
 //Wakes all devices from sleep mode.
-void MiniStat::begin()
+void MiniStat::begin(uint16_t mV, uint8_t MENB, uint8_t resolution = 10)
 {
-    //wakes up ATmega328
+	//wakes up ATmega328
     sleep_disable();
 
 	delay(100);
@@ -51,27 +55,43 @@ void MiniStat::begin()
     pStat.setMENB(pStat_Ctrl);
 
 	delay(50);
-   pStat.standby();
+	pStat.standby();
 
 
 	delay(50);
-   pStat.disableFET();
-
+	pStat.disableFET();
     pStat.setThreeLead();
-
     delay(1000);
 
 
     //initiates MCP4922
     dac.setSPIDivider(SPI_CLOCK_DIV16);
-	
     dac.setPortWrite(true);
-	
     dac.setAutomaticallyLatchDual(false);
-	
+}
 
-	
 
+void MiniStat::setReferenceVoltge(uint16_t mV)
+{
+	refmilliVolts = mV;
+}
+
+
+uint16_t MiniStat::getReferenceVoltge() const
+{
+	return refmilliVolts;
+}
+
+
+void MiniStat::setResolution(uint8_t bits)
+{
+	resolution = bits;
+}
+
+
+uint8_t MiniStat::getResolution() const
+{
+	resolution;
 }
 
 
@@ -133,58 +153,108 @@ void MiniStat::runExp() const
 //Runs cyclic voltammetry protocol. Sets the digital to analog converter to provide
 //a 1/2 Vdd reference voltage. The LMP91000 is then programmed to increment the
 //bias on the reference electrode form 0 to 0.24 times the reference voltage.
-void MiniStat::runCV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate)
+void MiniStat::runCV(uint8_t user_gain, uint8_t cycles, uint16_t rate,
+					 int16_t startV, int16_t endV)
 {
-    //dac.outputA(4095); // this is for Nick
-    dac.outputA(0);
-    dac.outputB(2047);  //Disables them, sets it up as a triangle wave
-	//originally 0, 2048
-    delay(10);
-    
-    pStat.setGain(user_gain);
-    pStat.setRLoad(0);
-    pStat.setExtRefSource();
-    pStat.setIntZ(1);
-    
-    int current = 0;  //Not needed 
-    uint8_t index = 0;
-    
-    //for (int i = 0; i < 50; i++) //for acid clean
-    for (int i = 0; i < 2*cycles; i++) //for measurements
-    {
-        int polarity = 0; // Just positive or negative
-        
-        if (i%2 == 0)
-        {
-            pStat.setNegBias();
-            polarity = -1;
-        }
-        else
-        {
-            pStat.setPosBias();
-            polarity = 1;
-        }
-        
-        //for (int j = 1; j <= 13; j++)
-        for (int j = 1; j <= 9; j++)
-        {
-            method(j, scan_rate, polarity);
-            //Serial.print("j: ");
-            //Serial.println(j);
-        }
-        
-        //for (int k = 12; k >= 0; k--)
-        for (int k = 8; k >= 0; k--)
-        {
-            method(k, scan_rate, polarity);
-            //Serial.print("k: ");
-            //Serial.println(k);
-        }
-    }
-
-	dac.outputA(0);
-	dac.outputB(0);
-            
+	pStat.disableFET();
+	pStat.setGain(user_gain);
+	pStat.setRLoad(0);
+	pStat.setIntRefSource();
+	pStat.setIntZ(1);
+	pStat.setThreeLead();
+	
+	startV = determineLMP91000Bias(startV);
+	endV = determineLMP91000Bias(endV);
+	
+	if(v1 < 0) pStat.setNegBias();
+	else pStat.setPosBias();
+	
+	
+	for (uint8_t i = 0; i < cycles; i++)
+	{
+		pstat.setNegBias();
+		for (int j = 1; j <= 11; j++)
+		{
+			pstat.setBias(j);
+			//delay(50);
+			delay(settling_time);
+			Serial.print(j*-1);
+			Serial.print(",");
+			delay(1);
+			Serial.println(analogRead(A0));
+			delay(rate);
+		}
+		for (int j = 10; j >= 0; j--)
+		{
+			pstat.setBias(j);
+			//delay(50);
+			delay(settling_time);
+			Serial.print(j*-1);
+			Serial.print(",");
+			delay(1);
+			Serial.println(analogRead(A0));
+			delay(rate);
+		}
+		pstat.setPosBias();
+		for (int j = 1; j <= 11; j++)
+		{
+			pstat.setBias(j);
+			//delay(50);
+			delay(settling_time);
+			Serial.print(j*1);
+			Serial.print(",");
+			delay(1);
+			Serial.println(analogRead(A0));
+			delay(rate);
+		}
+		for (int j = 10; j >= 0; j--)
+		{
+			pstat.setBias(j);
+			//delay(50);
+			delay(settling_time);
+			Serial.print(j*1);
+			Serial.print(",");
+			delay(1);
+			Serial.println(analogRead(A0));
+			delay(rate);
+		}
+	}
+	pstat.setBias(0);
+	
+	
+	
+//    //for (int i = 0; i < 50; i++) //for acid clean
+//    for (uint8_t i = 0; i < 2*cycles; i++) //for measurements
+//    {
+//        uint8_t polarity = 0; // Just positive or negative
+//
+//        if (i%2 == 0)
+//        {
+//            pStat.setNegBias();
+//            polarity = -1;
+//        }
+//        else
+//        {
+//            pStat.setPosBias();
+//            polarity = 1;
+//        }
+//
+//        //for (int j = 1; j <= 13; j++)
+//        for (uint8_t j = 1; j <= 9; j++)
+//        {
+//            method(j, scan_rate, polarity);
+//            //Serial.print("j: ");
+//            //Serial.println(j);
+//        }
+//
+//        //for (int k = 12; k >= 0; k--)
+//        for (uint8_t k = 8; k >= 0; k--)
+//        {
+//            method(k, scan_rate, polarity);
+//            //Serial.print("k: ");
+//            //Serial.println(k);
+//        }
+//    }
 }
 
 
@@ -246,445 +316,399 @@ void MiniStat::method(uint8_t bias, uint16_t scan_rate, int polarity)
 }
 
 
-void MiniStat::runACV(uint8_t user_gain, uint8_t cycles, uint16_t scan_rate, uint16_t startV, uint16_t endV, uint16_t amplitude, uint16_t freq)
+
+//doesn't work for pulse_widths less than 1ms
+//still need to figure out where to sample
+//the input parameters are in microseconds
+//the delays are done in milliseconds, but may need to use microseconds for more accuracy
+
+//void MiniStat::runNPV(uint8_t user_gain, uint8_t cycles, uint8_t freq,
+//					  unsigned long pulse_width, int16_t startV, int16_t endV,
+//					  int16_t stepV, uint8_t pulse_per_cycle)
+//
+//user_gain			gain of the LMP91000
+//
+//cycles			how many times the series of pulses will be applied
+//
+//pulse_period		how long each pulse lasts, the sum of the on time and the
+//						off time (also 1/frequency) (in microseconds)
+//
+//pulse_width		how long each pulse is applied (in microseconds)
+//
+//startV			user set start voltage (in milliVolts)
+//
+//endV				user specfied end voltage (in milliVolts)
+//
+//stepV				user specified step voltage (currently not being used)
+//						(in milliVolts)
+//
+//pulse_per_cycle	how many pulses are applied to get from startV to endV.
+//						this is currently limited by the resolution of the bias
+//						generator of the LMP91000
+//
+//This method runs a Normal Pulse Voltammetry sweep. This is easier to explain
+//using pictures intead of with words. Bioanalytical Sciencies explains it
+//fairly well, however. "The potential wave form consists of a series of pulses
+//of increasing amplitude, with the potential returning to the initial value
+//after each pulse."
+//<https://www.basinc.com/manuals/EC_epsilon/Techniques/Pulse/pulse#normal>
+void MiniStat::runNPV(uint8_t user_gain, uint8_t cycles, unsigned long pulse_period,
+					  unsigned long pulse_width, int16_t startV, int16_t endV,
+					  int16_t stepV, uint8_t pulse_per_cycle)
 {
-    //pStat.setTwoLead();
-    pStat.setGain(user_gain);
-    pStat.setRLoad(0);
-    pStat.setExtRefSource();
-    pStat.setIntZ(1);
-//    pStat.setPosBias();
-    pStat.setNegBias();
-    pStat.setBias(13);
-    delay(1000); //warm-up time for the gas sensor
-    int current = 0;
-    uint8_t index = 0;
-    
-    
-    unsigned long time0 = millis();
-    unsigned long sample = 100;
-    int i = 0;
-    int j = 0;
-    int k = 0;
-    
-    
-    uint32_t sum = 0;
-    
-    while (i > -1)
-    {
-        //Serial.println("hello there!");
-        if((micros() - time0) > 50)
-        {
-            sum += analogRead(pStat_Sensor);
-            i++;
-            time0 = micros();
-        
-            if (i%(12-1) == 0)
-            {
-                double data = waveformsTable[sineWave][j];
-                data = ((data - 2048.0)/25.0) + 2048.0;
-                dac.outputB(data);
-                j++;
-            }
-            if (i%(120-1) == 0)
-            {
-                double data = waveformsTable[triWave][k];
-                data = ((data - 2048.0)*.8) + 2048.0;
-                //data = ((data - 2048.0)*.6) + 1248.0;
-                dac.outputA(data);
-                k++;
-            }
-            
-            if(j == maxSamplesNum-1) j = 0;
-            if(k == maxSamplesNum-1)
-            {
-                k = 0;
-               // i = 0;
-            }
-            
-            //average(sum / max_samples);
-            //current = getCurrent(pStat_Sensor, ADC_REF, ADC_BITS)*pow(10,8);
-            //current = getCurrent(average, ADC_REF, ADC_BITS)*pow(10,8);
-//            memory.write(memory.getCurReg(), (current & 0xFF));
-//            memory.write(memory.getCurReg(), ((current >> 8) & 0xFF));
-//            memory.write(memory.getCurReg(), (((int)(polarity*bias_incr[bias]*ADC_REF*1000))&0xFF));
-//            memory.write(memory.getCurReg(), ((((int)(polarity*bias_incr[bias]*ADC_REF*1000)) >> 8) & 0xFF));
-        }
-    }
-    
-}
-
-
-void MiniStat::runPulseV(uint8_t user_gain, uint8_t cycles, uint16_t frequency, uint16_t pulse_width, int pulse_amplitude, uint8_t pulse_per_cycle) //Add duty cycle
-{
-    /*
-	Set DAC output values (Determine what they are)
-	Delay
-
-	Set gain based on user input
-	SetRLoad (Determine what RLoad is)
-	Set ExtRefSource (Determine)
-	SetIntZ (Determine)
-	
-
-
-	revised option
-	for number of cycles
-		for number of divisions
-			Pulse to zero
-			wait for pulse width
-			pulse up to i/number of divisions
-			wait till end (99%) of the pulse
-			Call a new method function to calculate the current
-				-Can assume the polarity is one, no scan rate, Will not need the bias
-		
-	
-	option 1
-	For loop for Bias incriment
-		set first value to zero, incriment the rest to the peak values based on number of cycles
-	
-	For number of user cycles
-		method(0, Scan rate, 1);
-		method(j, scan rate, 1);
-
-
-	Option 2
-	Pulse height value variable initalized to user gain)
-
-	for loop (0 to number of cycles)
-		Set voltage to low for half of the period, post incriment the base voltage (Determine how long the period is going to be (1/Scan Rate?))
-		Turn voltage to high for rest of period
-		Measure the current at 95% of the period
-		Method(i, scan rate, 1)
-
-		
-	
-	*/
-
-	dac.outputA(0);
-	dac.outputB(0);  //Disables them
-	delay(10);
-
-//	pStat.setGain(user_gain);
-//	pStat.setRLoad(0);
-//	pStat.setExtRefSource();
-//	pStat.setIntZ(1);
-
-	int current1 = 0;
-	unsigned short volt = 0;
-	int polarity = 0;
-	int ms = 0;
-	int us = 0;
-	int down_time = (1000000 / frequency - pulse_width); //Down time in us
-	ms = down_time / 1000;
-	us = down_time - 1000 * ms;
-
-
-	Serial.print("Down time: ");
-	Serial.println(down_time);
-
-
-
-
-	for (int i = 1; i <= cycles; i++)
-	{
-		for (int j = 1; j <= pulse_per_cycle; j++)
-		{
-			dac.outputA(0);
-			
-			//create wait based on duty cycles
-			delay(ms);
-			delayMicroseconds(us); //Delay us can only do 16000, do two delays for more accuracy
-			
-			volt = (((double)j / pulse_per_cycle)) * calcDACValue(pulse_amplitude);
-	
-			dac.outputA(volt);
-		
-			delayMicroseconds(pulse_width); //Find the accuracy of this
-			polarity = getPolarity((((double)j / pulse_per_cycle)) * pulse_amplitude);
-			current1 = calcCurrent((((double)j / pulse_per_cycle)) * pulse_amplitude, polarity);
-
-			//{rintout the values
-
-		}
-		dac.outputA(0);
-	}
-}
-
-void MiniStat::runDPV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16_t endV, int step_size, int pulse_amp, uint16_t sample_period, uint16_t pulse_freq)
-{
-
-	/*
-		*Set DAC output Values
-		*Delay
-		
-		*Set Gain
-		*SetRload
-		*Set extRefSourc
-		*SetIntZ
-
-		
-		Revised:
-		*for cycles
-		*	for(start, end, step size)
-				wait(sample minus pulse time)
-				Record current
-				increase voltage pulse size
-				Wait for pulse time
-				Record current
-				differentiat current through a new method_
-
-
-		
-		
-		Set variable for the height Value
-
-		For Number of cycles
-			Set the voltage to the base value
-			Sample right before the voltage is increased
-			Incriment voltage the desired amount
-			wait till before the end
-			Sample the end value
-			Incriment the base value
-
-		//will probably need a new comparison method to measure the dfference in currents
-	*/
-
-	dac.outputA(0);
-	dac.outputB(0);  //Disables them
-	delay(10);
-
-//	pStat.setGain(user_gain);
-//	pStat.setRLoad(0);
-//	pStat.setExtRefSource();
-//	pStat.setIntZ(1);
-
-	int current1 = 0;
-	int current2 = 0;
-	int volt = 0;
-	int polarity = 0;
-	for (int i = 1; i <= cycles; i++)
-	{
-		for (int j = startV; j <= endV; j += step_size)
-		{
-			volt = calcDACValue(j);
-			dac.outputA(volt);
-			polarity = getPolarity(j);
-
-			//wait for the prestep sample
-			delay((1000 / pulse_freq)); //Will need to do minus the sample period later
-
-
-			current1 = calcCurrent(j, polarity);
-
-			volt = calcDACValue(j + pulse_amp);
-			dac.outputA(volt);
-			polarity = getPolarity(j + pulse_amp);
-
-			//wait till the end value of time
-			delay(1000 / pulse_freq);
-
-			current2 = calcCurrent(j + pulse_amp, polarity);
-			
-			//prints the base voltage value and the current difference
-//			Serial.print(j);
-//			Serial.print(",");
-			Serial.println(-((double)(current2) - current1));
-
-			
-
-		}
-	}
-	dac.outputA(0);
-
-}
-
-void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV, uint16_t endV,  int pulse_amp, uint16_t volt_step, uint16_t pulse_freq)
-{
-	
-	dac.outputA(0);
-	dac.outputB(0);  //Disables them //May need to change to half
-	delay(10);
-	
+	pStat.disableFET();
 	pStat.setGain(user_gain);
 	pStat.setRLoad(0);
-	pStat.setExtRefSource();
+	pStat.setIntRefSource();
 	pStat.setIntZ(1);
-	int volt = 0; //in code to send to the DAC
-	int polarity = 0; //This should all be good
-
-	int current1 = 0;
-	int current2 = 0;
-
-
-	/*possible wait time solutions
-	Frequency in Hz
-	1/hz = Sec
-	1000/ Frequency - Time in ms, can simply input into delay
-	*/
-	for (int i = 1; i <= cycles; i++)
+	pStat.setThreeLead();
+	
+	pStat.setBias(0);
+	if(endV < 0) pStat.setNegBias();
+	else pStat.setPosBias();
+	
+	long off_time = pulse_period - pulse_width;
+	long pulse_width_in_ms = pulse_width/1000; //pulse-width in milliseconds
+	long off_time_in_ms = off_time/1000; //off time in milliseconds
+	//long off_time_in_us = ; //off time in microseconds
+	
+	uint8_t pulses = abs((endV-startV)/(3300*0.02));
+	
+	for (uint8_t i = 0; i < cycles; i++)
 	{
-		volt = calcDACValue(startV); //Sets it to the DAC code value based on the voltage inputed
-		polarity = getPolarity(volt);
-		dac.outputA(volt); //Sets the voltage to the number given
-		for (int j = startV; j <= endV; j += volt_step)
+		for (uint8_t j = 0; j < pulses; j++)
 		{
-	
-
-			Serial.println(j);
-			//increase to J + pulse amp
-			//Serial.print(j + pulse_amp);
-			//Serial.print(", ");
-			volt = calcDACValue(j + pulse_amp); //Base Value + Amplitude
-			//Serial.println(volt);
-			polarity = getPolarity(j + pulse_amp);
-			dac.outputA(volt);
-			//Wait for (.99 * 1/pulse_freq);
-			//delay(0.99 / pulse_freq); //will need a new method to account for the inverse
-			//Scan the current and store
+			unsigned long startTime = millis();
+			pStat.setBias(0);
+			while(millis() - startTime < off_time_in_ms);
 			
-			delay(1000 / pulse_freq); //Added to accomidate for the wait time possible
-			current1 = calcCurrent(j + pulse_amp,  polarity);
-
-
-			//Decrease to (J - Pulse amp)
-			//Serial.print(j - pulse_amp);
-			//Serial.print(", ");
-			volt = calcDACValue(j - pulse_amp);
-			//Serial.println(volt);
-			polarity = getPolarity(j- pulse_amp);
-			dac.outputA(volt);
-			//Wait for (.99 * 1/pulse_freq);
-			//delay(0.99 / pulse_freq);
-			//scan the current and store
-			delay(1000 / pulse_freq);
-			current2 = calcCurrent(j-pulse_amp,  polarity);
-			//Find the difference in current and print it
-//			Serial.print(j);
-//			Serial.print(",");
-			//Serial.print(adcVal);
-			//serial.print(",");
-			Serial.println(-((double)(current2) - current1)); //See if this is how the printing works
-
-
+			startTime = millis();
+			pStat.setBias(j);
+			while(millis() - startTime < pulse_width_in_ms)
+			{
+				Serial.print(millis());
+				Serial.print(",");
+				Serial.println(pStat.getOutput(pStat_Sensor));
+			}
 		}
-		dac.outputA(0);
+		pStat.setBias(0);
 	}
-	dac.outputA(0);
-}
-	
-
-
-int MiniStat::calcCurrent(uint16_t voltage, int polarity)
-{
-	
-	//pStat.setBias(bias);
-	//delay(scan_rate);
-	pStat.setBias(13);
-	//int volt = polarity * voltage * ADC_REF * 1000; //Check if this is correct
-	//int volt = polarity * bias_incr[bias] * ADC_REF * 1000;
-	long volt = polarity *  voltage;
-	//set the bias to max value, compensated for this by making the outputted voltage larger
-	
-	//    memory.write(memory.getCurReg(), (voltage & 0xFF));
-	//    memory.write(memory.getCurReg(), ((voltage >> 8) & 0xFF));
-
-	uint16_t adcVal = pStat.getOutput(pStat_Sensor);
-	long current = pStat.getCurrent(adcVal, ADC_REF, ADC_BITS)*pow(10, 8);
-	//    memory.write(memory.getCurReg(), (current & 0xFF));
-	//    memory.write(memory.getCurReg(), ((current >> 8) & 0xFF));
-
-	Serial.print(volt);
-	Serial.print(",");
-	Serial.print(adcVal);
-	Serial.print(",");
-	Serial.println(-current);
-
-	return current;
 }
 
-void MiniStat::runAMP(uint16_t user_gain, int voltage, uint16_t time, int samples)
+
+//void MiniStat::runDPV(uint8_t user_gain, uint8_t cycles, unsigned long pulse_period,
+//						unsigned long pulse_width, int16_t startV, int16_t endV,
+//						int16_t stepV, uint8_t pulse_per_cycle)
+//
+//user_gain			gain of the LMP91000
+//
+//cycles			how many times the series of pulses will be applied
+//
+//pulse_period		how long each pulse lasts, the sum of the on time and the
+//						off time (also 1/frequency) (in microseconds)
+//
+//pulse_width		how long each pulse is applied (in microseconds)...same as
+//						"on time"
+//
+//startV			user set start voltage (in milliVolts)
+//
+//endV				user specfied end voltage (in milliVolts)
+//
+//stepV				user specified step voltage (currently not being used)
+//						(in milliVolts)
+//
+//pulse_per_cycle	how many pulses are applied to get from startV to endV.
+//						this is currently limited by the resolution of the bias
+//						generator of the LMP91000
+//This method runs a Differential Pulse Voltammetry sweep. This is easier to explain
+//using pictures intead of with words. Bioanalytical Sciencies explains it
+//fairly well, however. "The potential wave form consists of small pulses (of
+//constant amplitude) superimposed upon a staircase wave form. Unlike NPV, the
+//current is sampled twice in each Pulse Period (once before the pulse, and at
+//the end of the pulse), and the difference between these two current values is
+//recorded and displayed."
+//<https://www.basinc.com/manuals/EC_epsilon/Techniques/Pulse/pulse#normal>
+void MiniStat::runDPV(uint8_t user_gain, uint8_t cycles, unsigned long pulse_period,
+					  unsigned long pulse_width, int16_t startV, int16_t endV,
+					  int16_t stepV, uint8_t pulse_per_cycle)
 {
-	/*
-		Set DAC output Values
-		Delay
-		Set Gain
-		SetRload
-		Set extRefSourc
-		SetIntZ
+	pStat.disableFET();
+	pStat.setGain(user_gain);
+	pStat.setRLoad(0);
+	pStat.setIntRefSource();
+	pStat.setIntZ(1);
+	pStat.setThreeLead();
+
+	
+	long off_time = pulse_period - pulse_width;
+	long pulse_width_in_ms = pulse_width/1000; //pulse-width in milliseconds
+	long off_time_in_ms = off_time/1000; //off time in milliseconds
+	//long off_time_in_us = ; //off time in microseconds
+	
+	uint8_t pulses = abs((endV-startV)/(3300*0.02));
+	
+	for (uint8_t i = 0; i < cycles; i++)
+	{
+		for (uint8_t j = 0; j < pulses-3; j++)
+		{
+			Serial.print(millis());
+			Serial.print(",");
+			Serial.println(pStat.getOutput(pStat_Sensor));
+			
+			unsigned long startTime = millis();
+			pStat.setBias(j+2);
+			while(millis() - startTime < off_time_in_ms);
+
+			
+			Serial.print(millis());
+			Serial.print(",");
+			Serial.println(pStat.getOutput(pStat_Sensor));
+			
+			startTime = millis();
+			pStat.setBias(j+1);
+			while(millis() - startTime < pulse_width_in_ms);
+		}
 		
-		Change up to the voltage
-		for time
-			read in the current
-			find out how to continuously read in the current
+		pStat.setBias(0);
+	}
+	
+}
 
-	*/
-	dac.outputA(0);
-	dac.outputB(0);  //Disables them
-	delay(10);
 
+
+//void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV,
+//						uint16_t endV, int pulse_amp, uint16_t volt_step, uint16_t freq)
+//
+//user_gain			gain of the LMP91000
+//
+//cycles			how many times the series of pulses will be applied
+//
+//startV			user set start voltage (in milliVolts)
+//
+//endV				user specfied end voltage (in milliVolts)
+//
+//pulse_amp
+//
+//freq				the frequency of the square wave (in Hertz)
+//
+//This method runs a Square Wave Voltammetry sweep. This is easier to explain
+//using pictures intead of with words. Bioanalytical Sciencies explains it
+//fairly well, however:
+//
+//"The potential wave form consists of a square wave of constant amplitude
+//superimposed on a staircase wave form. The current is measured at the end of
+//each half-cycle, and the current measured on the reverse half-cycle (ir) is
+//subtracted from the current measured on the forward half-cycle (if). This
+//difference current (if - ir) is displayed as a function of the applied potential."
+//<https://www.basinc.com/manuals/EC_epsilon/Techniques/Pulse/pulse#normal>
+//
+void MiniStat::runSWV(uint8_t user_gain, uint8_t cycles, uint16_t startV,
+					  uint16_t endV, int pulse_amp, uint16_t volt_step, uint16_t freq)
+{
+	pStat.disableFET();
+	pStat.setGain(user_gain);
+	pStat.setRLoad(0);
+	pStat.setIntRefSource();
+	pStat.setIntZ(1);
+	pStat.setThreeLead();
+	
+	unsigned long pulse_width = (1000000/freq)/2;
+	unsigned long pulse_width_in_ms = pulse_width/1000;
+	unsigned long off_time_in_ms = pulse_width_in_ms;
+	
+	long off_time = pulse_period - pulse_width;
+	long pulse_width_in_ms = pulse_width/1000; //pulse-width in milliseconds
+	long off_time_in_ms = off_time/1000; //off time in milliseconds
+	//long off_time_in_us = ; //off time in microseconds
+	
+	uint8_t pulses = abs((endV-startV)/(3300*0.02));
+	
+	for (uint8_t i = 0; i < cycles; i++)
+	{
+		for (uint8_t j = 0; j < pulses-3; j++)
+		{
+			unsigned long startTime = millis();
+			pStat.setBias(j+3);
+			while(millis() - startTime < off_time_in_ms);
+			
+			Serial.print(millis());
+			Serial.print(",");
+			Serial.println(pStat.getOutput(pStat_Sensor));
+			
+			startTime = millis();
+			pStat.setBias(j+1);
+			while(millis() - startTime < pulse_width_in_ms);
+			
+			Serial.print(millis());
+			Serial.print(",");
+			Serial.println(pStat.getOutput(pStat_Sensor));
+		}
+		
+		pStat.setBias(0);
+	}
+	
+}
+
+
+////void MiniStat::runAMP(uint8_t user_gain, int16_t v1, int16_t v2, uint32_t t1,
+////						uint32_t t2, uint32_t waitTime, uint16_t samples)
+////
+////user_gain			gain of the LMP91000
+////
+////v1				the first step potential applied (in milliVolts)
+////
+////v2				the second step potential applied (in milliVolts)
+////
+////t1				the length of time the first step is applied (in milliseconds)
+////
+////t2				the length of time the second step is applied (in milliseconds)
+////
+////waitTime			the period of time (in milliseconds) before the first
+////						voltage is applied
+////
+////samples			the amount of measurements taken during each pulse period
+////
+//void MiniStat::runAmp(uint8_t user_gain, int16_t v1, int16_t v2, uint32_t t1,
+//					  uint32_t t2, uint32_t quietTime, uint16_t samples)
+//{
+//	pStat.disableFET();
 //	pStat.setGain(user_gain);
 //	pStat.setRLoad(0);
-//	pStat.setExtRefSource();
+//	pStat.setIntRefSource();
 //	pStat.setIntZ(1);
-	
-	int polarity = 0;
-	int current = 0;
-	
-	uint16_t wait_time = (time  / samples); //Time in MS
-	uint16_t volt = calcDACValue(voltage);
-	Serial.println(calcDACValue(voltage));
-	Serial.println(volt);
-	dac.outputA(volt);
-	
-	for (int i = 0; i < samples; i++)
-	{
-		delay(wait_time);
-		current = calcCurrent(voltage, polarity);
-//		uint16_t adcVal = pStat.getOutput(pStat_Sensor);
-//		int current = pStat.getCurrent(adcVal, ADC_REF, ADC_BITS)*pow(10, 8);
-
-//		Serial.print(voltage);
-//		Serial.print(",");
-//		Serial.print(adcVal);
-//		Serial.print(",");
-//		Serial.println(-current);
-		
-	}
-	dac.outputA(0);
-
-
-	
-
-}
-
-
-//void MiniStat::print()
+//	pStat.setThreeLead();
 //
-//Reads the voltage and current data from memory storage and prints to the
-//serial monitor.
-void MiniStat::print()
+//	uint32_t fs = t1/samples;
+//
+//	Serial.println("Voltage,Time(ms),Current");
+//
+//	v1 = determineLMP91000Bias(v1);
+//
+//	delay(quietTime);
+//
+//	if(v1 < 0) pStat.setNegBias();
+//	else pStat.setPosBias();
+//
+//	unsigned long startTime = millis();
+//	pStat.setBias(v1);
+//	while(millis() - startTime < t1)
+//	{
+//		Serial.print((uint16_t)(opVolt*TIA_BIAS[v1]*(v1/abs(v1))));
+//		Serial.print(",");
+//		Serial.print(millis());
+//		Serial.print(",");
+//		Serial.println(pStat.getOutput(A0));
+//		delay(fs);
+//	}
+//
+//	fs = t2/samples;
+//	v2 = determineLMP91000Bias(v2);
+//
+//	if(v2 < 0) pStat.setNegBias();
+//	else pStat.setPosBias();
+//
+//	startTime = millis();
+//	pStat.setBias(v2);
+//	while(millis() - startTime < t2)
+//	{
+//		Serial.print((uint16_t)(opVolt*TIA_BIAS[v2]*(v2/abs(v2))));
+//		Serial.print(",");
+//		Serial.print(millis());
+//		Serial.print(",");
+//		Serial.println(pStat.getOutput(A0));
+//		delay(fs);
+//	}
+//
+//	pStat.setBias(0);
+//}
+
+
+
+//range = 12 is picoamperes
+//range = 9 is nanoamperes
+//range = 6 is microamperes
+//range = 3 is milliamperes
+void runAmp(uint8_t user_gain, int16_t pre_stepV, uint32_t quietTime, int16_t v1,
+			uint32_t t1, int16_t v2, uint32_t t2, uint16_t samples, uint8_t range)
 {
-    for (int i = 0; i < 256; i=i+4)
-    {
-        int voltage = (int)((memory.read(i+1) << 8) | memory.read(i));
-        int current = (int)((memory.read(i+3) << 8) | memory.read(i+2));
-        
-        Serial.print(i); //for debug purposes
-        Serial.print(","); //for debug purposes
-        Serial.print(voltage);
-        Serial.print(",");
-        Serial.println(current);
-    }
+	pStat.disableFET();
+	pStat.setGain(user_gain);
+	pStat.setRLoad(0);
+	pStat.setIntRefSource();
+	pStat.setIntZ(1);
+	pStat.setThreeLead();
+	
+	//Print column headers
+	String current = "";
+	if(range == 12) current = "Current(pA)";
+	else if(range == 9) current = "Current(nA)";
+	else if(range == 6) current = "Current(uA)";
+	else if(range == 3) current = "Current(mA)";
+	else current = "SOME ERROR";
+	
+	Serial.println("Voltage(mV),Time(ms)," + current);
+	
+	int16_t voltageArray[3] = {pre_stepV, v1, v2};
+	int16_t timeArray[3] = {quietTime, t1, t2};
+	
+	//i = 0 is pre-step voltage
+	//i = 1 is first step potential
+	//i = 2 is second step potential
+	for(uint8_t i = 0; i < 3; i++)
+	{
+		//For pre-step voltage
+		uint32_t fs = timeArray[i]/samples;
+		voltageArray[i] = determineLMP91000Bias(voltageArray[i]);
+		
+		if(voltageArray[i] < 0) pStat.setNegBias();
+		else pStat.setPosBias();
+		
+		unsigned long startTime = millis();
+		pStat.setBias(voltageArray[i]);
+		while(millis() - startTime < timeArray[i])
+		{
+			Serial.print((uint16_t)(opVolt*TIA_BIAS[voltageArray[i]]*(voltageArray[i]/abs(voltageArray[i]))));
+			Serial.print(",");
+			Serial.print(millis());
+			Serial.print(",");
+			Serial.println(pow(10,range)*pStat.getCurrent(pStat.getOutput(A0), opVolt/1000.0, resolution));
+			delay(fs);
+		}
+	}
+	
+	//End at 0V
+	pStat.setBias(0);
 }
 
-int MiniStat::calcDACValue(int vout)
+
+signed char MiniStat::determineLMP91000Bias(int16_t voltage)
 {
-	long x = 4.1666 * vout;
+	signed char polarity = 0;
+	if(voltage < 0) polarity = -1;
+	else polarity = 1;
 	
-	return ((int)(x  * 4096 / 3300));
+	int16_t v1 = 0;
+	int16_t v2 = 0;
 	
+	voltage = abs(voltage);
+	
+	if(voltage == 0) return 0;
+	
+	for(int i = 0; i < NUM_TIA_BIAS-1; i++)
+	{
+		v1 = opVolt*TIA_BIAS[i];
+		v2 = opVolt*TIA_BIAS[i+1];
+		
+		if(voltage == v1) return i;
+		else if(voltage > v1 && voltage < v2)
+		{
+			if(abs(voltage-v1) < abs(voltage-v2)) return polarity*i;
+			else return polarity*i+1;
+		}
+	}
+	return 0;
 }
+
 
 int MiniStat::getPolarity(int volt)
 {
@@ -703,14 +727,6 @@ int MiniStat::getPolarity(int volt)
 	return polarity;
 }
 
-
-/*
- Convert to current
- 
- set parameters for LMP91000
- 
- set parameters for MPC4922
- */
 
 
 /*
@@ -731,16 +747,6 @@ int MiniStat::getPolarity(int volt)
  TCCR2B |= (1 << CS22);
  TIMSK2 |= (1 << OCIE2A);
  
- 
- ISR(TIMER2_COMPA_vect)
- {
- counter++;
- if(counter > 2hrs)
- {
- sleep_disable();
- counter = 0;
- }
- }
  
  
 every two hours
